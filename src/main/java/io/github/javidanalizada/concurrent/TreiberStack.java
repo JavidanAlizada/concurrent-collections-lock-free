@@ -23,6 +23,7 @@ public final class TreiberStack<T> {
 
     private Node<T> head;
 
+    /** Pushes a value onto the stack; rejects null. */
     public void push(T value) {
         Objects.requireNonNull(value, "value cannot be null");
         Node<T> newHead = new Node<>(value);
@@ -35,6 +36,7 @@ public final class TreiberStack<T> {
         } while (!HEAD.compareAndSet(this, oldHead, newHead));
     }
 
+    /** Removes and returns the top value, or null if the stack is empty. */
     public T pop() {
         Node<T> oldHead;
         Node<T> newHead;
@@ -48,11 +50,13 @@ public final class TreiberStack<T> {
         return oldHead.value;
     }
 
+    /** Returns the top value without removing it, or null if empty. */
     public T peek() {
         Node<T> current = head();
         return current == null ? null : current.value;
     }
 
+    /** True if the stack currently has no elements. */
     public boolean isEmpty() {
         return head() == null;
     }
