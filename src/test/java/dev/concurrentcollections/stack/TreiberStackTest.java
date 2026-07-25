@@ -1,4 +1,4 @@
-package io.github.javidanalizada.concurrent;
+package dev.concurrentcollections.stack;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

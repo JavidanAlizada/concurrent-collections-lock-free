@@ -9,7 +9,7 @@ plugins {
     id("me.champeau.jmh") version "0.7.2"
 }
 
-group = "io.github.javidanalizada"
+group = "dev.concurrentcollections"
 version = "0.1.0-SNAPSHOT"
 
 java {

@@ -1,4 +1,4 @@
-package io.github.javidanalizada.concurrent;
+package dev.concurrentcollections.stack;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;

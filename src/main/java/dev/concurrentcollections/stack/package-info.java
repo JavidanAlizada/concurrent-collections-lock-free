@@ -10,4 +10,4 @@
  * {@code docs/design/} for the cross-cutting Java Memory Model, CAS, ABA,
  * and memory-ordering documentation that applies to all of them.
  */
-package io.github.javidanalizada.concurrent;
+package dev.concurrentcollections.stack;
