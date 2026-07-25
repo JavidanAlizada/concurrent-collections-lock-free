@@ -4,6 +4,11 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
 
+/**
+ * Lock-free stack: a singly linked list where {@code head} is only ever
+ * mutated by a single CAS. Nulls are rejected on push, so pop/peek can use
+ * null to mean "empty" unambiguously.
+ */
 public final class TreiberStack<T> {
 
     private static final VarHandle HEAD;
