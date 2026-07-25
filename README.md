@@ -6,7 +6,7 @@ point isn't to reinvent `ConcurrentLinkedQueue` — it's to make the CAS
 algorithms and Java Memory Model reasoning behind structures like it explicit,
 provable, and benchmarked against the JDK's own implementations.
 
-Status: early — Milestone 1 (Treiber lock-free stack) in progress. See
+Status: Milestone 1 (Treiber lock-free stack) complete. See
 [CHANGELOG.md](CHANGELOG.md) for what's actually landed.
 
 ## Why VarHandle instead of AtomicReference
@@ -26,12 +26,16 @@ Requires JDK 21.
 ./gradlew compileJava checkstyleMain spotbugsMain   # compile + static analysis
 ./gradlew test                                       # unit + concurrent tests
 ./gradlew jacocoTestReport                            # coverage report
-./gradlew jmh                                          # benchmarks (smoke profile locally)
 ```
 
 CI runs the same pipeline on every push/PR to `main` (`.github/workflows/pr.yml`).
-A nightly job runs the full JMH matrix with real warmup/measurement settings
-(`.github/workflows/nightly.yml`).
+
+## Performance
+
+No JMH benchmarking is done in this project — a deliberate scope decision,
+not a gap. See [PERFORMANCE.md](PERFORMANCE.md) for the reasoning. The
+`me.champeau.jmh` plugin and the nightly workflow's benchmark step are wired
+but unused.
 
 ## Structures
 

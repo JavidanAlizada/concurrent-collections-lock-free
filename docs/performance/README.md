@@ -1,8 +1,6 @@
 # Performance
 
-Higher-level performance characteristics and capacity planning, distinct from
-the raw numbers in `docs/benchmarks/`: expected throughput envelopes, where
-each structure wins or loses against its JDK equivalent, and at what thread
-count contention starts to dominate.
-
-Populated once Milestone 1's benchmark results exist to summarize.
+JMH benchmarking is not done in this project — a deliberate scope decision,
+not deferred work. See [PERFORMANCE.md](../../PERFORMANCE.md) at the repo
+root for the rationale. This directory stays empty as a result: there are no
+measured throughput envelopes or contention thresholds to summarize.
