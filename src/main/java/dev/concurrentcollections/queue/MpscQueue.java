@@ -1,8 +1,8 @@
 package dev.concurrentcollections.queue;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Bounded multi-producer/single-consumer queue using Dmitry Vyukov's
@@ -11,21 +11,16 @@ import java.util.Objects;
  * on its own head pointer at all. See {@code docs/algorithms/mpsc-queue.md}
  * for the full algorithm write-up, including the producer-publish race
  * window and how {@link #resolve} resolves it.
+ *
+ * <p>Unlike {@code TreiberStack} (Milestone 1, {@code VarHandle}-based),
+ * this class uses {@link AtomicReference}/{@link AtomicInteger} - a
+ * deliberate choice to compare both approaches across the portfolio, not a
+ * reflection of one being generally better. See ADR-006 for the trade-offs.
+ * {@code Node.next} stays a plain {@code volatile} field either way: it's
+ * never the target of a compound atomic operation, just a release-write /
+ * acquire-read pair, so wrapping it in either primitive would add nothing.
  */
-public final class MpscQueue<T> extends Pad2<T> {
-
-    private static final VarHandle PRODUCER_TAIL;
-    private static final VarHandle COUNT;
-
-    static {
-        try {
-            PRODUCER_TAIL = MethodHandles.lookup()
-                    .findVarHandle(ProducerTailRef.class, "producerTail", Node.class);
-            COUNT = MethodHandles.lookup().findVarHandle(MpscQueue.class, "count", int.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
+public final class MpscQueue<T> {
 
     // Reference-equality sentinel: "we can't yet tell empty from mid-publish."
     // Never exposed outside this class, so its type-erased raw use is safe.
@@ -33,7 +28,9 @@ public final class MpscQueue<T> extends Pad2<T> {
 
     private final int capacity;
     private final Node<T> stub;
-    private int count;
+    private final AtomicReference<Node<T>> producerTail;
+    private final AtomicInteger count = new AtomicInteger();
+    private Node<T> consumerHead;
 
     /** Creates a queue that holds at most {@code capacity} elements. */
     public MpscQueue(int capacity) {
@@ -42,22 +39,21 @@ public final class MpscQueue<T> extends Pad2<T> {
         }
         this.capacity = capacity;
         this.stub = new Node<>(null);
-        this.producerTail = stub;
+        this.producerTail = new AtomicReference<>(stub);
         this.consumerHead = stub;
     }
 
     /** Offers a value; rejects null. Returns false if the queue is at capacity. */
-    @SuppressWarnings("unchecked")
     public boolean offer(T value) {
         Objects.requireNonNull(value, "value cannot be null");
-        int reserved = (int) COUNT.getAndAdd(this, 1);
+        int reserved = count.getAndIncrement();
         if (reserved >= capacity) {
-            COUNT.getAndAdd(this, -1);
+            count.getAndDecrement();
             return false;
         }
         Node<T> node = new Node<>(value);
         // Unconditional exchange - unlike a CAS loop, this never retries.
-        Node<T> prev = (Node<T>) PRODUCER_TAIL.getAndSet(this, node);
+        Node<T> prev = producerTail.getAndSet(node);
         prev.next = node; // release-publish node.value to the consumer's next read
         return true;
     }
@@ -83,13 +79,13 @@ public final class MpscQueue<T> extends Pad2<T> {
      * into the list - see docs/algorithms/mpsc-queue.md.
      */
     public int size() {
-        return (int) COUNT.getVolatile(this);
+        return count.get();
     }
 
     private T dequeue(boolean consume) {
         Node<T> result = resolve(consume);
         if (result == UNRESOLVED) {
-            if ((int) COUNT.getVolatile(this) == 0) {
+            if (count.get() == 0) {
                 return null; // nothing reserved anywhere: genuinely empty
             }
             pushStub();
@@ -124,7 +120,7 @@ public final class MpscQueue<T> extends Pad2<T> {
         }
         if (consume) {
             consumerHead = next;
-            COUNT.getAndAdd(this, -1);
+            count.getAndDecrement();
         }
         return tail;
     }
@@ -136,67 +132,22 @@ public final class MpscQueue<T> extends Pad2<T> {
      * {@link #resolve} finds it; otherwise the retry still comes back
      * {@link #UNRESOLVED} and the caller defers to a later call.
      */
-    @SuppressWarnings("unchecked")
     private void pushStub() {
         // Unlike a freshly allocated Node, the reused stub's `next` still
         // points at whatever it was last linked to - reset before
         // re-publishing it, or a stale link resurrects an already-consumed
         // node the next time consumerHead walks through the stub.
         stub.next = null;
-        Node<T> prev = (Node<T>) PRODUCER_TAIL.getAndSet(this, stub);
+        Node<T> prev = producerTail.getAndSet(stub);
         prev.next = stub;
     }
-}
 
-// Manual cache-line padding isolating producerTail (written by every
-// producer) from consumerHead (written only by the consumer) and from the
-// queue's other fields. Package-private top-level classes, not nested
-// inside MpscQueue: a class's own extends clause can't reference one of
-// its own member types. See docs/design/false-sharing-mpsc.md.
+    private static final class Node<T> {
+        final T value;
+        volatile Node<T> next;
 
-abstract class Pad0 {
-    long p00;
-    long p01;
-    long p02;
-    long p03;
-    long p04;
-    long p05;
-    long p06;
-}
-
-abstract class ProducerTailRef<T> extends Pad0 {
-    Node<T> producerTail;
-}
-
-abstract class Pad1<T> extends ProducerTailRef<T> {
-    long p10;
-    long p11;
-    long p12;
-    long p13;
-    long p14;
-    long p15;
-    long p16;
-}
-
-abstract class ConsumerHeadRef<T> extends Pad1<T> {
-    Node<T> consumerHead;
-}
-
-abstract class Pad2<T> extends ConsumerHeadRef<T> {
-    long p20;
-    long p21;
-    long p22;
-    long p23;
-    long p24;
-    long p25;
-    long p26;
-}
-
-final class Node<T> {
-    final T value;
-    volatile Node<T> next;
-
-    Node(T value) {
-        this.value = value;
+        Node(T value) {
+            this.value = value;
+        }
     }
 }
