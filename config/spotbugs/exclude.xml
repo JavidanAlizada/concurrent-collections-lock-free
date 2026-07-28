@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Reasoned exclusions only - no blanket suppression of a bug category.
+
+  UUF_UNUSED_FIELD on Pad0/Pad1/Pad2 (dev.concurrentcollections.queue):
+  these long fields exist purely to force ~64-byte cache-line gaps around
+  producerTail/consumerHead in MpscQueue (manual @Contended-style padding,
+  since jdk.internal.vm.annotation.Contended isn't usable from application
+  code). Never read or written by design - see
+  docs/design/false-sharing-mpsc.md.
+-->
+<FindBugsFilter>
+    <Match>
+        <Class name="~dev\.concurrentcollections\.queue\.Pad[012]"/>
+        <Bug pattern="UUF_UNUSED_FIELD"/>
+    </Match>
+</FindBugsFilter>
