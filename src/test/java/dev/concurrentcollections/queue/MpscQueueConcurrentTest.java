@@ -36,9 +36,7 @@ class MpscQueueConcurrentTest {
         int perProducer = 5_000;
         int totalOffered = producers * perProducer;
 
-        // Capacity == totalOffered: no producer should ever see offer() fail,
-        // isolating producer-vs-producer races on producerTail from the
-        // producer-vs-consumer race window exercised by the second test.
+        // capacity == totalOffered: offer() never fails, isolates producer-vs-producer races
         MpscQueue<Msg> queue = new MpscQueue<>(totalOffered);
 
         runConcurrently(producers, p -> {
@@ -61,9 +59,7 @@ class MpscQueueConcurrentTest {
     void concurrentProducersAndConsumerRunningTogetherPreserveEveryValue() throws InterruptedException {
         int producers = 6;
         int perProducer = 5_000;
-        int capacity = 64; // small relative to traffic - forces offer() to spin-retry
-        // against a consumer draining concurrently, exercising the
-        // producer-publish race window (see resolve()/pushStub()).
+        int capacity = 64; // small vs. traffic - forces offer() to spin-retry against the consumer
         int totalOffered = producers * perProducer;
 
         MpscQueue<Msg> queue = new MpscQueue<>(capacity);
@@ -155,3 +151,4 @@ class MpscQueueConcurrentTest {
         }
     }
 }
+

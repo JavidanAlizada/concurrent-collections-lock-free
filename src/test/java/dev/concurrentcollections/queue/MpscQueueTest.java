@@ -124,10 +124,7 @@ class MpscQueueTest {
 
     @Test
     void repeatedFullDrainCyclesDoNotResurrectStaleValues() {
-        // The internal stub node is reused across every full-drain cycle;
-        // regression coverage for a bug where its stale `next` pointer
-        // (left over from a previous cycle) caused an already-consumed
-        // value to be returned again on a later poll().
+        // regression: stale stub.next resurrected an old value across drain cycles
         MpscQueue<Integer> queue = new MpscQueue<>(4);
         for (int cycle = 0; cycle < 5; cycle++) {
             queue.offer(cycle * 10 + 1);
@@ -141,3 +138,4 @@ class MpscQueueTest {
         }
     }
 }
+
